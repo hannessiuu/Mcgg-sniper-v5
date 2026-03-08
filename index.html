@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>MCGG SNIPER v5</title>
+	<style>
+		:root {
+			--bg: #0f172a;
+			--card: #1e293b;
+			--accent: #38bdf8;
+			--danger: #ef4444;
+			--win: #10b981;
+			--warn: #fbbf24;
+		}
+
+		body {
+			font-family: 'Segoe UI', sans-serif;
+			background: var(--bg);
+			color: white;
+			margin: 0;
+			padding: 10px;
+		}
+
+		.container {
+			max-width: 500px;
+			margin: auto;
+		}
+
+		.card {
+			background: var(--card);
+			padding: 15px;
+			border-radius: 12px;
+			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+			border: 1px solid #334155;
+		}
+
+		.header {
+			text-align: center;
+			margin-bottom: 15px;
+		}
+
+		.header h2 {
+			margin: 0;
+			color: var(--accent);
+			font-size: 1.2rem;
+		}
+
+		.input-box {
+			display: flex;
+			gap: 5px;
+			margin-bottom: 15px;
+		}
+
+		input {
+			flex: 1;
+			padding: 12px;
+			border-radius: 8px;
+			border: 1px solid #475569;
+			background: #0f172a;
+			color: white;
+			font-size: 1rem;
+		}
+
+		.btn-add {
+			background: var(--accent);
+			border: none;
+			padding: 0 15px;
+			border-radius: 8px;
+			font-weight: bold;
+		}
+
+		.player-row {
+			display: flex;
+			align-items: center;
+			background: #334155;
+			margin-bottom: 8px;
+			padding: 10px;
+			border-radius: 10px;
+			gap: 10px;
+		}
+
+		.name-area {
+			flex: 1;
+			font-weight: bold;
+			font-size: 1.1rem;
+			cursor: pointer;
+		}
+
+		.status {
+			font-size: 0.7rem;
+			color: #94a3b8;
+			display: block;
+		}
+
+		.btn-group {
+			display: flex;
+			gap: 5px;
+		}
+
+		.btn-action {
+			border: none;
+			padding: 8px 10px;
+			border-radius: 6px;
+			color: white;
+			font-weight: bold;
+			font-size: 0.7rem;
+			cursor: pointer;
+		}
+
+		.btn-busy {
+			background: var(--warn);
+			color: #000;
+		}
+
+		/* Sedang Tanding */
+		.btn-die {
+			background: var(--danger);
+		}
+
+		/* Mati */
+
+		.prediction-box {
+			background: #020617;
+			border: 2px solid var(--accent);
+			padding: 15px;
+			border-radius: 10px;
+			text-align: center;
+			margin-top: 15px;
+		}
+
+		.next-label {
+			font-size: 0.8rem;
+			color: #94a3b8;
+			margin-bottom: 5px;
+		}
+
+		.target-name {
+			font-size: 1.6rem;
+			font-weight: 800;
+			color: var(--warn);
+			text-transform: uppercase;
+		}
+
+		.pasti-tag {
+			background: var(--danger);
+			color: white;
+			padding: 2px 8px;
+			border-radius: 4px;
+			font-size: 0.7rem;
+			display: inline-block;
+			margin-top: 5px;
+			animation: blink 0.8s infinite;
+		}
+
+		.btn-mirror {
+			width: 100%;
+			background: #6366f1;
+			border: none;
+			padding: 12px;
+			border-radius: 8px;
+			font-weight: bold;
+			color: white;
+			margin-top: 10px;
+		}
+
+		@keyframes blink {
+			50% {
+				opacity: 0.5;
+			}
+		}
+
+		.footer-btns {
+			margin-top: 20px;
+			display: flex;
+			gap: 10px;
+		}
+
+		.btn-reset {
+			flex: 1;
+			background: none;
+			border: 1px solid #475569;
+			color: #64748b;
+			padding: 10px;
+			border-radius: 8px;
+			cursor: pointer;
+		}
+	</style>
+</head>
+
+<body>
+
+	<div class="container">
+		<div class="card">
+			<div class="header">
+				<h2>MCGG SNIPER v5</h2>
+			</div>
+
+			<div class="input-box">
+				<input type="text" id="pName" placeholder="Nama Lawan..." onkeypress="if(event.key==='Enter') addPlayer()">
+				<button class="btn-add" onclick="addPlayer()">+</button>
+			</div>
+
+			<div id="playerList"></div>
+
+			<button class="btn-mirror" onclick="markLawan('MIRROR')">SAYA LAWAN MIRROR / BOT</button>
+
+			<div class="prediction-box">
+				<div class="next-label">TARGET BERIKUTNYA:</div>
+				<div id="target" class="target-name">---</div>
+				<div id="isPasti"></div>
+			</div>
+
+			<div class="footer-btns">
+				<button class="btn-reset" onclick="resetGame()">RESET LOBBY</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		let players = [];
+		let history = []; // 3 ronde terakhir saya
+		let busyPlayers = []; // Pemain yang sedang tanding di papan lain
+
+		function addPlayer() {
+			const input = document.getElementById('pName');
+			const name = input.value.trim().toUpperCase();
+			if (name && !players.find(p => p.name === name)) {
+				players.push({ name: name, isDead: false });
+				input.value = '';
+				render();
+			}
+		}
+
+		function markLawan(name) {
+			history.unshift(name);
+			if (history.length > 3) history.pop();
+			busyPlayers = []; // Reset status tanding setiap ronde baru dimulai
+			render();
+		}
+
+		function markBusy(name) {
+			if (!busyPlayers.includes(name)) {
+				busyPlayers.push(name);
+			} else {
+				busyPlayers = busyPlayers.filter(n => n !== name);
+			}
+			render();
+		}
+
+		function kill(name) {
+			const p = players.find(x => x.name === name);
+			if (p) p.isDead = true;
+			history = history.filter(h => h !== name);
+			busyPlayers = busyPlayers.filter(n => n !== name);
+			render();
+		}
+
+		function render() {
+			const listDiv = document.getElementById('playerList');
+			listDiv.innerHTML = '';
+
+			players.forEach(p => {
+				if (p.isDead) return;
+				const isCooldown = history.includes(p.name);
+				const isBusy = busyPlayers.includes(p.name);
+
+				const row = document.createElement('div');
+				row.className = 'player-row';
+				row.style.opacity = isCooldown ? '0.5' : '1';
+				row.style.borderLeft = isBusy ? '5px solid var(--warn)' : '5px solid var(--accent)';
+
+				row.innerHTML = `
+                <div class="name-area" onclick="markLawan('${p.name}')">
+                    ${p.name}
+                    <span class="status">${isCooldown ? 'Baru dilawan' : (isBusy ? 'Sedang Tanding' : 'Tersedia')}</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-action btn-busy" onclick="markBusy('${p.name}')">TANDING</button>
+                    <button class="btn-action btn-die" onclick="kill('${p.name}')">X</button>
+                </div>
+            `;
+				listDiv.appendChild(row);
+			});
+			calculate();
+		}
+
+		function calculate() {
+			const alive = players.filter(p => !p.isDead).map(p => p.name);
+			// Kandidat = Yang tidak dalam history DAN tidak sedang tanding di papan lain
+			let candidates = alive.filter(n => !history.includes(n) && !busyPlayers.includes(n));
+
+			const targetDiv = document.getElementById('target');
+			const pastiDiv = document.getElementById('isPasti');
+			pastiDiv.innerHTML = '';
+
+			if (alive.length === 0) {
+				targetDiv.innerText = "INPUT DATA";
+			} else if (candidates.length === 1) {
+				targetDiv.innerText = candidates[0];
+				pastiDiv.innerHTML = '<span class="pasti-tag">100% PASTI</span>';
+			} else if (candidates.length > 1) {
+				targetDiv.innerText = candidates[0] + " / " + candidates[1];
+			} else {
+				// Jika kandidat kosong karena semua 'Busy' atau 'Cooldown', tampilkan sisa yang hidup
+				const fallback = alive.filter(n => !history.includes(n));
+				targetDiv.innerText = fallback.length > 0 ? fallback[0] : "RANDOM/RESET";
+			}
+		}
+
+		function resetGame() {
+			if (confirm("Hapus semua & reset?")) {
+				players = [];
+				history = [];
+				busyPlayers = [];
+				render();
+			}
+		}
+	</script>
+</body>
+
+</html>
